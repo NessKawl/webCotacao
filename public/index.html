@@ -1,45 +1,118 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
-  <title>Cotação</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload de Planilhas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #333;
+    }
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #0070f3;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #0059c9;
+    }
+    #loading {
+      display: none;
+      margin-top: 15px;
+      color: #0070f3;
+    }
+  </style>
 </head>
-
 <body>
-  <h2>Web Cotação</h2>
-  <form action="/upload" method="POST" enctype="multipart/form-data" id="form">
-    <div class="div-form">
-      <div id="inputs" class="div-inputs">
-        <div class="file-input">
-          <input type="file" name="files" class="btn-escolherArquivo" required>
-          <input type="text" name="identificadores" placeholder="Identificador" class="identificador" required>
-        </div>
-      </div>
-      <div class="buttons">
-        <button type="button" onclick="addInput()" class="btn-add">+ Adicionar outra planilha</button>
-        <a href="/modelo.xlsx" download="modelo_cotação">
-          <button type="button" class="btn-gerarPlanilha">Gerar planilha modelo</button>
-        </a>
-        <br><br>
-        <button type="submit" class="btn-submit">Baixar Consolidado</button>
-      </div>
-    </div>
+  <h1>Upload de Planilhas</h1>
+  <form id="uploadForm">
+    <label for="files">Selecione os arquivos Excel:</label>
+    <input type="file" id="files" name="files" multiple required accept=".xlsx,.xls" />
+
+    <label for="identificadores">Identificadores (separe por vírgula):</label>
+    <input type="text" id="identificadores" name="identificadores" placeholder="Ex: Loja A, Loja B, Loja C" />
+
+    <button type="submit">Enviar</button>
+    <div id="loading">Processando...</div>
   </form>
 
   <script>
-    function addInput() {
-      const div = document.createElement('div');
-      div.classList.add('file-input');
-      div.innerHTML = `
-        <input type="file" name="files" class="btn-escolherArquivo" required>
-          <input type="text" name="identificadores" placeholder="Identificador" class="identificador" required>
-      `;
-      document.getElementById('inputs').appendChild(div);
-    }
+    const form = document.getElementById("uploadForm");
+    const loading = document.getElementById("loading");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const filesInput = document.getElementById("files");
+      const identificadoresInput = document.getElementById("identificadores");
+
+      if (!filesInput.files.length) {
+        alert("Selecione pelo menos um arquivo!");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let file of filesInput.files) {
+        formData.append("files", file);
+      }
+
+      if (identificadoresInput.value.trim()) {
+        const ids = identificadoresInput.value.split(",").map(id => id.trim());
+        ids.forEach(id => formData.append("identificadores", id));
+      }
+
+      loading.style.display = "block";
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+
+        // Baixar automaticamente o arquivo gerado
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "resultado.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (err) {
+        alert("Erro: " + err.message);
+      } finally {
+        loading.style.display = "none";
+      }
+    });
   </script>
-
 </body>
-
 </html>
